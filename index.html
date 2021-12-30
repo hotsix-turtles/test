@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.io Chat</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript">
+        const socket = io.connect('http://localhost:3000');
+        var nickname = "";
+
+        function scrollToBottom() {
+            const container = document.querySelector(".chat_items_wrapper");
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function makeChatItem(id, sender, timestamp, message) {
+            const chatbox = document.querySelector('.chat_items_wrapper');
+
+            const chatTime = document.createElement('span');
+            const chatSender = document.createElement('span');
+            const chatMessage = document.createElement('span');
+            chatTime.textContent = new Date(Number(timestamp)).toLocaleTimeString();
+            chatTime.classList.add('chat_time');
+            chatSender.textContent = sender;
+            chatSender.classList.add('chat_sender');
+            chatMessage.textContent = message;
+            chatMessage.classList.add('chat_message');
+
+            const chatItem = document.createElement('div');
+            chatItem.classList.add('chat_item');
+            
+            if (sender == 'system') 
+                chatItem.classList.add('pale_green');
+            else if (id % 2 == 0) 
+                chatItem.classList.add('gray');
+
+            chatItem.appendChild(chatTime);
+            if (sender != 'system') chatItem.appendChild(chatSender);
+            chatItem.appendChild(chatMessage);
+
+            chatbox.appendChild(chatItem);
+
+            scrollToBottom();
+        }
+
+        function refreshUser(users) {
+            const userbox = document.querySelector('.chat_users_wrapper');
+            userbox.innerHTML = '<div class="chat_users_banner">유저 목록</div>';
+
+            for (let i = 0; i < users.length; i++)
+            {
+                const userNickname = document.createElement('span');
+                userNickname.textContent = users[i].nickname;
+                
+                const userItem = document.createElement('div');
+                userItem.classList.add('chat_user');
+                userItem.appendChild(userNickname);
+
+                userbox.appendChild(userItem);
+            }
+        }
+
+        socket.on('join', (data) => { refreshUser(data.users); });
+        socket.on('chat', (data) => { makeChatItem(data.id, data.sender, data.timestamp, data.message); });
+
+        function setNickname(nickname)
+        {
+            if (!nickname.length || nickname == 'system') return;
+            this.nickname = nickname;
+            event.target.value = "";
+            document.querySelector('.chat_input').placeholder = "메세지 입력";
+            socket.emit('join', { sender: this.nickname });
+        }
+
+        function send() {
+            if (event.target.value && event.keyCode == 13) 
+            {
+                if (!this.nickname)
+                {
+                    setNickname(event.target.value);
+                    return;
+                }
+
+                socket.emit('msg', { sender: nickname, message: event.target.value });
+                event.target.value = "";
+            }
+        }
+
+        function heartbeat() {
+            if (this.nickname) socket.emit('heartbeat', { sender: this.nickname });
+            setTimeout(this.heartbeat, 1000);
+        }
+
+        setTimeout(this.heartbeat, 1000);
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        #app {
+            font-family: Avenir, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            margin-top: 60px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .chat_wrapper {
+            display: flex;
+            justify-content: center;
+            border: 2px solid rgba(33,133,133,1);
+            border-radius: 10px;
+        }
+
+        .chat_users_wrapper {
+            position: relative;
+            left: -2px;
+            top: -2px;
+            width: 300px;
+            height: calc(100% + 4px);
+            border: 2px solid rgba(33,133,133,1);
+            border-radius: 10px 0px 0px 10px;
+            color: white;
+            text-align: center;
+        }
+
+        .chat_users_banner {
+            position: relative;
+            padding: 20px;
+            background-color: rgba(33,133,133,1);
+            border-radius: 6px 0px 0px 0px;
+            font-size: 18px;
+        }
+
+        .chat_user {
+            margin: 10px;
+            color: black;
+        }
+
+        .chat_items_wrapper {
+            width: 400px;
+            height: 500px;
+            margin-top: 5px;
+            margin-left: 5px;
+            overflow-y: scroll;
+        }
+
+        .chat_items_wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat_items_wrapper::-webkit-scrollbar-thumb {
+            height: 15%;
+            background-color: rgba(33,133,133,1);
+            border-radius: 10px;
+        }
+
+        .chat_items_wrapper::-webkit-scrollbar-track {
+            background-color: rgba(33,133,133,0.33);
+            height: 100px;
+        }
+
+        .chat_input {
+            position: relative;
+            top: 2px;
+            left: -4px;
+            width: calc(100% + 6px);
+            height: 40px;
+            font-size: 16px;
+            border: 2px solid rgba(33,133,133,1);
+            border-radius: 0px 0px 10px 0px;
+            padding-left: 10px;
+            caret-color: rgba(33,133,133,1);
+        }
+
+        .chat_input:focus {
+            outline: none;
+        }
+        
+        .gray { background-color: rgb(238, 238, 238); }
+        .pale_green { background-color: rgb(198, 240, 240); }
+
+        .chat_item {
+            display: inline-block;
+            text-align: left;
+            font-size: 12px;
+            width: calc(100% - 10px);
+            padding: 10px;
+        }
+
+        .chat_sender {
+            padding-right: 10px;
+            color: rgb(0,0,0);
+        }
+
+        .chat_time {
+            padding-right: 10px;
+            color: rgb(155, 155, 155);
+        }
+
+        .chat_message {
+            width: 100px;
+            color: rgba(33,133,133,1);
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="chat_wrapper">
+          <div class="chat_users_wrapper">
+            <div class="chat_users_banner">유저 목록</div>
+          </div>
+          <div class="chatbox">
+            <div class="chat_items_wrapper">
+            </div>
+            <div class="chat_input_wrapper">
+                <input class="chat_input" placeholder="닉네임 입력" onkeyup="send(this)">
+            </div>
+          </div>
+        </div>
+      </div>
+</body>
+</html>
